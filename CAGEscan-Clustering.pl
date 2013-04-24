@@ -24,10 +24,10 @@ use Getopt::Long;
 use File::Basename;
 
 
-my $samtools_bin = "/home/nbertin/osc-fs/bin/samtools";
-my $bamtobed_bin = "/home/nbertin/osc-fs/bin/pairedBamToBed12";
-my $intersectbed_bin = "/home/nbertin/osc-fs/bin/intersectBed";
-my $mergebed_bin = "/home/nbertin/osc-fs/bin/mergeBed";
+my $samtools_bin = "/usr/bin/samtools";
+my $bamtobed_bin = "/usr/bin/pairedBamToBed12";
+my $intersectbed_bin = "/usr/bin/intersectBed";
+my $mergebed_bin = "/usr/bin/mergeBed";
 my $tmp_bed6_tss_input_file = '/tmp/' . join(".", basename($0, ".pl"), 'bed6_tss_formatted_input', $$, 'tmp');
 my $tmp_bed6_cluster_file = '/tmp/' . join(".", basename($0,".pl"), 'bed6_induced_cluster', $$, 'tmp');
 my @valid_input_format = qw(bed  sam  bam  bed.gz  sam.gz  bam.gz);
