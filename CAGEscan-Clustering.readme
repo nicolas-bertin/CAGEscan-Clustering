@@ -7,7 +7,8 @@ usage: CAGEscan-Clustering.2.0.pl -i <input bed12, bam or sam file to be cluster
    specified using the -f option, in the absence of which it is guessed from the suffix
    of the input file. Valid suffixes / format are: 'bed', 'sam' 'bam' or gziped version
    of those formats).
-   Importantly if the data is sent in bam or sam format, it MUST BE SORTED BY NAME
+   Importantly if the data is sent in bam or sam format, it MUST BE SORTED BY NAME.
+   Note that read names ending by /1 /2 or /3 are consdered different by pairedBamToBed12.
 
    An optional BED6 formatted cluster file (-c) can be used to guide the construction of
    CAGEscan clusters. Note that only paired-end data whose TSS overlap with at least one
