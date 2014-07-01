@@ -43,6 +43,9 @@ and other programs from the BEDTools suite.
  * Definition of Promotome–Transcriptome Architecture Using CAGEscan
    Bertin et al., 2012.  Chapter 3 of "Tag-Based Next Generation Sequencing", Wiley-VCH Verlag GmbH & Co. KGaA
    http://dx.doi.org/10.1002/9783527644582.ch3
+ * Digital expression profiling of the compartmentalized translatome of Purkinje neurons.
+   Kratz, Beguin et al., Genome Res. 2014 (in press).
+   http://dx.doi.org/10.1101/gr.164095.113
 
 ## pairedBamToBed12
 
