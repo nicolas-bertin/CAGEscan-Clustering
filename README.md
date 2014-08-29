@@ -30,8 +30,9 @@ Create CAGEscan clusters from paired-end data in BED12, BAM or SAM format,
 using the data itself as a guide or an optional list of CAGE Tag Starting Site
 (CTSS) clusters in BED6 format.
 
-CAGEscan-Clustering is a Perl script written at RIKEN, that calls pairedBamToBed12
-and other programs from the BEDTools suite.
+CAGEscan-Clustering is a Perl script written at RIKEN, that calls
+`pairedBamToBed12` and other programs from the BEDTools suite.  It is fully
+documented in the file [CAGEscan-Clustering.pod](CAGEscan-Clustering.pod).
 
 ## See also
 
