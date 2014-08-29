@@ -32,6 +32,7 @@ my $tmp_bed6_tss_input_file = '/tmp/' . join(".", basename($0, ".pl"), 'bed6_tss
 my $tmp_bed6_cluster_file = '/tmp/' . join(".", basename($0,".pl"), 'bed6_induced_cluster', $$, 'tmp');
 my @valid_input_format = qw(bed  sam  bam  bed.gz  sam.gz  bam.gz);
 
+my $help;
 my $input_format;
 my $input_file;
 my $predefined_cluster_file;
@@ -44,6 +45,7 @@ my $usage;
 my $verbose = 0;
 
 my $opt = GetOptions(
+		     "help"              => \$help,            
 		     "usage"             => \$usage,
 		     "verbose=i"         => \$verbose,
 		     "cluster_file=s"               => \$predefined_cluster_file,
@@ -63,15 +65,10 @@ my $opt = GetOptions(
 		    );
 
 sub usage(){
-
-  my $usage = <<HERE;
-
+  die <<HERE;
 usage: $0 -i <input bed12, bam or sam file to be clustered>
-       see “perldoc $0” for details
-
+       type “perldoc $0” for details
 HERE
-
-   print STDERR $usage;
 }
 
 =pod
@@ -303,6 +300,7 @@ Path to BedTools C<intersectBed> binary (always used).
 
 ## print usage and exit
 if (defined $usage){ usage(); exit;}
+if (defined $help) { usage(); exit;}
 
 ## check the input format
 unless ($input_format){
