@@ -32,6 +32,7 @@ my $tmp_bed6_tss_input_file = '/tmp/' . join(".", basename($0, ".pl"), 'bed6_tss
 my $tmp_bed6_cluster_file = '/tmp/' . join(".", basename($0,".pl"), 'bed6_induced_cluster', $$, 'tmp');
 my @valid_input_format = qw(bed  sam  bam  bed.gz  sam.gz  bam.gz);
 
+my $help;
 my $input_format;
 my $input_file;
 my $predefined_cluster_file;
@@ -44,6 +45,7 @@ my $usage;
 my $verbose = 0;
 
 my $opt = GetOptions(
+		     "help"              => \$help,            
 		     "usage"             => \$usage,
 		     "verbose=i"         => \$verbose,
 		     "cluster_file=s"               => \$predefined_cluster_file,
@@ -63,137 +65,242 @@ my $opt = GetOptions(
 		    );
 
 sub usage(){
-
-  my $usage = <<HERE;
-
+  die <<HERE;
 usage: $0 -i <input bed12, bam or sam file to be clustered>
-
-   Create CAGEscan cluster from paired-end data in BED12, BAM or SAM format
-   Input data can be send to STDIN, in which case the format (-f) of the input must be
-   specified, or read from a file -i, in which case the format of the data can be
-   specified using the -f option, in the absence of which it is guessed from the suffix
-   of the input file. Valid suffixes / format are: 'bed', 'sam' 'bam' or gziped version
-   of those formats).
-   Importantly if the data is sent in bam or sam format, it MUST BE SORTED BY NAME
-
-   An optional BED6 formatted cluster file (-c) can be used to guide the construction of
-   CAGEscan clusters. Note that only paired-end data whose TSS overlap with at least one
-   cluster will be grouped.
-   In the absence of such an optional BED6 formatted cluster file, "guiding" clusters are
-   created from the paired-end data themselves using a simple "single-linkage clustering"
-   approach using the distance -d (ie clustering together all the data based on their TSS
-   being distant of -d basepair). The result of the TSS single-linkage-based clustering
-   can be stored (BED6) if a file path (-s) is provided or is otherwise discarded.
-
-   Output data will be BED12 formatted CAGEscan cluster.
-     * the name of each cluster will correspond to the name of the guiding cluster (BED6
-     formatted cluster name), or, if clusters are created from the paired-end data, will
-     correspond to: Lx_<chr>_<strand>_<start>_<end> with the chr,strand,start and end of
-     the TSS single-linkage derived clusters.
-     * the score of each cluster will correspond to the number of input paired-end tags
-     composing the resulting CAGEscan cluster.
-     * the hallmark of the TSS/guiding cluster on the CAGEscan cluster will be encoded by
-     a 3'UTR region with :
-         - the cdsStart will correspond to either the start of CAGEscan cluster or
-          end of the guiding cluster (when on the plus strand), or to the start of
-          the guiding cluster or end of the CAGEScan cluster (when on the minus strand).
-         - similarly BED12::cdsEnd will correspond to either the start of the guiding
-         cluster or end of the CAGEscan cluster (when on the plus strand), or to
-         the start of the CAGEscan cluster or end of the guiding cluster (when on the
-         minus strand).
-   Note about using guiding cluster:
-         (instead of de-novo clustering from the paired-end TSS)
-             Whenever the boundaries of the guiding cluster extend beyond those of the intersected
-             paired-end input data, the reported CAGEscan cluster boundaries will be those of the 
-                 paired-end data, not that of the guiding cluster.
-                 As it can be problematic to integrate multiple run with various input paired-end data,
-                 keep in mind that the cluster name is that of the guide and shall be used. 
-   Note about dealing with very large input:
-          The rate limiting step of this script is the preparation of the paired-end input data that need 
-          to be transformaed into a bed6 with start and end corresponding to the 0based pe_tss position,
-          name corresponding to the semicolon delimited concatenated full bed12 line and (more importantly
-          and time-intensive) sorted by tss position.
-          This step can be `precomputed` and skipped providing the Boolean flag -p which will informs the
-          script that the provided input file/stdin already correspond to the precomputed data content, 
-          format and sorting. Also since CAGEscan cluster are by definition, assemblies of reads located on
-          the same chromosome and strand, I recommand for large file to split up the input paired-end reads
-          by chromosome and strand and precompute the sorted bed6 internal tmp file (with start and end 
-          corresponding to the 0based pe_tss position, name corresponding to the semicolon delimited 
-          concatenated full bed12 line and sorted by tss position).
-
-OPTIONS:
-   -h      Show this message
-   -v      Verbose level (1-9)
-
-
-   BASIC OPTIONS
-
-   -i,--input
-           Input paired-end data file. Can be a bam, sam, bed or gzip compressed BED12 file
-           It is recommended to use sensible suffix for the detection of the format of the file,
-           although this can also be specified using the -f option.
-           Note that this parameter is not mandatory, as input data can also be read from stdin.
-   -q,--min_map_quality
-           The minumum "mapping quality value" for including the input data into a CAGEscan cluster.
-           If the input is SAM or BAM this value corresponds to the sum of each pair member MapQ.
-           If the input is BED12 , this value is extracted from the score column.
-           This value is inclusive (aka "bigger or equal than").
-           [Default : undefined, aka no filtering]
-   -f,--format
-           Format of the input (paired-end) data. Valid format are: 'bed', 'sam', 'bam', 'bed.gz'
-           'sam.gz', or 'bam.gz' and 'bam'. -f is mandatory if the input conmes from stdin but
-           optionnal if the input (-i) is a file ending with one of the valid format.
-   -c,--cluster_file
-           Path to a BED6 formatted cluster file directing the construction of CAGEscan
-           clusters. Note that only paired-end data whose TSS overlap with at least one
-           cluster will be grouped. If none provided, the input data itself will be used.
-   -d,--denovo_cluster_distance
-           The distance for paired-end data TSS single linkage clustreing.
-           If no BED6 formatted cluster file directing the construction of CAGEscan clusters
-           were provided, the paired-end data themselves using a simple "single-linkage
-           clustering" approach using this distance to group neighboring TSS.
-   -s,--stored_denovo_cluster_file
-           The path of the BED6 file where (TSS) cluster file directing the construction of
-           CAGEscan clusters is to be stored (otherwise stored in a temp file).
-   -x,--stored_uprocessed_bam_file
-           The path were non properly paired or pairs not fulfilling the min_map_quality criteria
-           of BAM or SAM input can be stored.
-   -p,--presorted_bed6_tss_input_file
-           Boolean flag skipping the transformation of the input paired-end data into a bed6 with
-           start and end correspond to the 0based pe_tss position name correspond to the semicolon
-           delimited concatenated full bed12 line sort by tss position. IMPORTANTLY, it of course
-           means that the input file (-i) MUST conform to the above mentionned specifications
-
-
-   OTHER OPTIONS (path to binaries and temp files)
-
-   --tmp_bed6_tss_input_file
-            Path to the location where a temporary BED12 formatted file holding the input data
-            might be created. This is in particular the case when "guiding" clusters are created
-            from the paired-end data themselves.
-            [default '/tmp/CAGEscan-Clustering.bed12_formatted_input.PID.tmp']
-   --tmp_bed6_cluster_file
-            Path to the location where a temporary BED6 formatted file holding the "guiding"
-            clusters can be created.
-            [default '/tmp/CAGEscan-Clustering.bed6_formatted_induced_cluster.PID.tmp']
-
-   --bin_samtools      Path to samtools binary ("samtools view -Sb ..." used only when input
-                       is in 'sam' format).
-   --bin_bamtobed      Path to pairedBamToBed12 (re-enginering of BedTools bamToBed) binary
-                       which transform properly paired BAM alignments into a single BED entry
-                       (used only when input is in 'bam' or 'sam' format).
-   --bin_mergebed      Path to BedTools::mergeBed binary (used only when "guiding" clusters
-                       must be generated from single-linkage clustering of the the paired-end
-                       data themselves).
-   --bin_intersectbed  Path to BedTools::intersectBed binary (always used).
-
+       type “perldoc $0” for details
 HERE
-   print STDERR $usage;
 }
 
+=pod
+
+=head1 NAME
+
+CAGEscan-Clustering - Create CAGEscan cluster from BED12, BAM or SAM pairs
+
+=head1 SYNOPSIS
+
+CAGEscan-Clustering.pl -i <input bed12, bam or sam file to be clustered>
+
+=head1 DESCRIPTION
+
+Create CAGEscan cluster from paired-end data in BED12, BAM or SAM
+format.  Input data can be sent to STDIN, in which case the format
+(C<-f>) of the input must be specified, or read from a file C<-i>, in
+which case the format of the data can be specified using the C<-f>
+option, in the absence of which it is guessed from the suffix of the
+input file.  Valid suffixes / format are: 'bed', 'sam' 'bam' or gziped
+version of those formats).
+
+Importantly if the data is sent in BAM or SAM format, B<it must be
+sorted by name>.
+
+An optional BED6 formatted cluster file (C<-c>) can be used to guide
+the construction of CAGEscan clusters. Note that only paired-end data
+whose TSS overlap with at least one cluster will be grouped.
+
+In the absence of such an optional BED6 formatted cluster file,
+"guiding" clusters are created from the paired-end data themselves
+using a simple "single-linkage clustering" approach using the distance
+C<-d> (ie clustering together all the data based on their TSS being
+distant of C<-d> basepair). The result of the TSS single-linkage-based
+clustering can be stored (BED6) if a file path (C<-s>) is provided or
+is otherwise discarded.
+
+Output data will be BED12 formatted CAGEscan cluster.
+
+=over
+
+=item
+
+the name of each cluster will correspond to the name of the guiding
+cluster (BED6 formatted cluster name), or, if clusters are created
+from the paired-end data, will correspond to:
+C<Lx_chr_strand_start_end> with the chr,strand,start and end of the
+TSS single-linkage derived clusters.
+
+=item
+
+The score of each cluster will correspond to the number of input
+paired-end tags composing the resulting CAGEscan cluster.
+
+=item
+
+The hallmark of the TSS/guiding cluster on the CAGEscan cluster will
+be encoded by a 3'UTR region with :
+
+=over
+
+=item
+
+The I<cdsStart> will correspond to either the start of CAGEscan cluster
+or end of the guiding cluster (when on the plus strand), or to the
+start of the guiding cluster or end of the CAGEScan cluster (when on
+the minus strand).
+
+=item
+
+Similarly, I<cdsEnd> will correspond to either the start of the
+guiding cluster or end of the CAGEscan cluster (when on the plus
+strand), or to the start of the CAGEscan cluster or end of the guiding
+cluster (when on the minus strand).
+
+=back
+
+=back
+
+=head2 Note about using guiding cluster
+
+(instead of de-novo clustering from the paired-end TSS)
+
+Whenever the boundaries of the guiding cluster extend beyond those of
+the intersected paired-end input data, the reported CAGEscan cluster
+boundaries will be those of the paired-end data, not that of the
+guiding cluster.  As it can be problematic to integrate multiple run
+with various input paired-end data, keep in mind that the cluster name
+is that of the guide and shall be used.
+
+=head2 Note about dealing with very large input
+
+The rate limiting step of this script is the preparation of the
+paired-end input data that need to be transformed into a BED6 with
+I<start> and I<end> corresponding to the 0-based pe_tss position, name
+corresponding to the semicolon delimited concatenated full BED12 line
+and (more importantly and time-intensive) sorted by TSS position.
+
+This step can be `precomputed` and skipped providing the Boolean flag
+C<-p> which will informs the script that the provided input file/stdin
+already correspond to the precomputed data content, format and
+sorting. Also since CAGEscan cluster are by definition, assemblies of
+reads located on the same chromosome and strand, I recommend for large
+files to split up the input paired-end reads by chromosome and strand
+and precompute the sorted BED6 internal temporary file (with I<start>
+and I<end> corresponding to the 0-based pe_tss position, I<name>
+corresponding to the semicolon delimited concatenated full BED12 line
+and sorted by TSS position).
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-h>
+
+Show this message
+
+=item B<-v>
+
+Verbose level (1-9)
+
+=back
+
+=head2 BASIC OPTIONS
+
+=over 8
+
+=item B<-i,--input>
+
+Input paired-end data file. Can be a BAM, SAM, BED or gzip compressed
+BED12 file.  It is recommended to use sensible suffix for the detection
+of the format of the file, although this can also be specified using
+the C<-f> option.  Note that this parameter is not mandatory, as input
+data can also be read from STDIN.
+
+=item B<-q,--min_map_quality>
+
+The minumum "mapping quality value" for including the input data into
+a CAGEscan cluster.  If the input is SAM or BAM this value corresponds
+to the sum of each pair member MapQ.  If the input is BED12 , this
+value is extracted from the score column.  This value is inclusive
+(aka "bigger or equal than").  [Default : undefined, aka no filtering]
+
+=item B<-f,--format>
+
+Format of the input (paired-end) data. Valid format are: C<bed>,
+C<sam>, C<bam>, C<bed.gz>, C<sam.gz>, or C<bam.gz>.  C<-f> is
+mandatory if the input comes from STDIN but optionnal if the input
+(C<-i>) is a file ending with one of the valid formats.
+
+=item B<-c,--cluster_file>
+
+Path to a BED6 formatted cluster file directing the construction of
+CAGEscan clusters.  Note that only paired-end data whose TSS overlap
+with at least one cluster will be grouped.  If none provided, the input
+data itself will be used.
+
+=item B<-d,--denovo_cluster_distance>
+
+The distance for paired-end data TSS single linkage clustering.  If no
+BED6 formatted cluster file directing the construction of CAGEscan
+clusters were provided, the paired-end data themselves using a simple
+"single-linkage clustering" approach using this distance to group
+neighboring TSS.
+
+=item B<-s,--stored_denovo_cluster_file>
+
+The path of the BED6 file where (TSS) cluster file directing the
+construction of CAGEscan clusters is to be stored (otherwise stored in
+a temporary file).
+
+=item B<-x,--stored_uprocessed_bam_file>
+
+The path where non properly paired or pairs not fulfilling the
+min_map_quality criteria of BAM or SAM input can be stored.
+
+=item B<-p,--presorted_bed6_tss_input_file>
+
+Boolean flag skipping the transformation of the input paired-end data
+into a BED6 with I<start> and I<end> correspond to the 0-based pe_tss
+position name correspond to the semicolon delimited concatenated full
+BED12 line sort by TSS position.  B<Importantly>, it of course means
+that the input file (C<-i>) B<must> conform to the above mentionned
+specifications
+
+=back
+
+=head2 OTHER OPTIONS (path to binaries and temp files)
+
+=over 8
+
+=item B<--tmp_bed6_tss_input_file>
+
+Path to the location where a temporary BED12 formatted file holding
+the input data might be created.  This is in particular the case when
+"guiding" clusters are created from the paired-end data themselves.
+[default '/tmp/CAGEscan-Clustering.bed12_formatted_input.PID.tmp']
+
+=item B<--tmp_bed6_cluster_file>
+
+Path to the location where a temporary BED6 formatted file holding the
+"guiding" clusters can be created.  [default
+'/tmp/CAGEscan-Clustering.bed6_formatted_induced_cluster.PID.tmp']
+
+=item B<--bin_samtools>
+
+Path to C<samtools> binary ("samtools view -Sb ..." used only when
+input is in SAM format).
+
+=item B<--bin_bamtobed>
+
+Path to C<pairedBamToBed12> (re-enginering of BEDTools C<bamToBed>)
+binary which transform properly paired BAM alignments into a single
+BED entry (used only when input is in BAM or SAM format).
+
+=item B<--bin_mergebed>
+
+Path to BedTools::mergeBed binary (used only when "guiding" clusters
+must be generated from single-linkage clustering of the the paired-end
+data themselves).
+
+=item B<--bin_intersectbed>
+
+Path to BedTools C<intersectBed> binary (always used).
+
+=back
+
+=cut
 
 ## print usage and exit
 if (defined $usage){ usage(); exit;}
+if (defined $help) { usage(); exit;}
 
 ## check the input format
 unless ($input_format){
