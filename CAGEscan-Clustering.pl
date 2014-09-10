@@ -348,7 +348,7 @@ unless ($presorted_bed6_tss_input_file){
   $cmd .= " sed -e 's/\t/;/g'                                          \\
                | awk 'BEGIN{FS=\";\"}{OFS=\"\t\"}                      \\
                    {                                                   \\
-                   if (\$6 ~ /+/) print \$1,\$2,\$2+1,\$0,\".\",\$6;   \\
+                   if (\$6 == \"+\") print \$1,\$2,\$2+1,\$0,\".\",\$6;   \\
                    else           print \$1,\$3-1,\$3,\$0,\".\",\$6;   \\
                    }'                                                  \\
                |  sort -k1,1d -k6,6d -k2,2n                            \\
