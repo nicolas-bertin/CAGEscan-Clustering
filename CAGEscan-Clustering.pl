@@ -351,7 +351,7 @@ unless ($presorted_bed6_tss_input_file){
                    if (\$6 == \"+\") print \$1,\$2,\$2+1,\$0,\".\",\$6;   \\
                    else           print \$1,\$3-1,\$3,\$0,\".\",\$6;   \\
                    }'                                                  \\
-               |  sort -k1,1d -k6,6d -k2,2n                            \\
+               |  sort -k1,1d -k6,6 -k2,2n                            \\
                |  ";
 }
 
@@ -359,7 +359,7 @@ if (defined $predefined_cluster_file){
   ## predefined_cluster_file is provided no need to built it from the input
   ## intersect the transformed input bed12 formatted pe data with the bed6
   ## cluster, reporting both the "pe bed12" and "cluster bed6" content
-  $cmd .= " $intersectbed_bin -s -wo -a stdin -b $predefined_cluster_file | sort -k10,10d";
+  $cmd .= " $intersectbed_bin -s -wo -a stdin -b $predefined_cluster_file";
   if ($verbose > 0){ print STDERR "merging predefined cluster in $predefined_cluster_file with $input_format input data ...\n"; }
   if ($verbose > 2){ print STDERR $cmd, "\n"; }
 }
@@ -376,7 +376,7 @@ else{
   system($cmd);
   ## intersect the transformed input bed12 formatted pe data with the de novo
   ## bed cluster, reporting both the "pe bed12" and "cluster bed6" content
-  $cmd = "$intersectbed_bin -s -wo -a $bed6_tss_input_file -b $bed6_cluster_file | sort -k10,10d";
+  $cmd = "$intersectbed_bin -s -wo -a $bed6_tss_input_file -b $bed6_cluster_file";
   if ($verbose > 0){ print STDERR "now, merging de-novo single linkage cluster with $input_format input data...\n"; }
   if ($verbose > 2){ print STDERR $cmd, "\n"; }
 }
