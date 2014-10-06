@@ -298,7 +298,6 @@ Path to BedTools C<intersectBed> binary (always used).
 
 =cut
 
-## print usage and exit
 if (defined $usage){ usage(); exit;}
 if (defined $help) { usage(); exit;}
 
@@ -350,16 +349,14 @@ unless ($presorted_bed6_tss_input_file){
                    {                                                   \\
                    if (\$6 == \"+\") print \$1,\$2,\$2+1,\$0,\".\",\$6;   \\
                    else           print \$1,\$3-1,\$3,\$0,\".\",\$6;   \\
-                   }'                                                  \\
-               |  sort -k1,1d -k6,6 -k2,2n                            \\
-               |  ";
+                   }' | ";
 }
 
 if (defined $predefined_cluster_file){
   ## predefined_cluster_file is provided no need to built it from the input
   ## intersect the transformed input bed12 formatted pe data with the bed6
   ## cluster, reporting both the "pe bed12" and "cluster bed6" content
-  $cmd .= " $intersectbed_bin -s -wo -a stdin -b $predefined_cluster_file";
+  $cmd .= "sort -k1,1d -k6,6 -k2,2n | $intersectbed_bin -s -wo -a stdin -b $predefined_cluster_file";
   if ($verbose > 0){ print STDERR "merging predefined cluster in $predefined_cluster_file with $input_format input data ...\n"; }
   if ($verbose > 2){ print STDERR $cmd, "\n"; }
 }
@@ -368,15 +365,15 @@ else{
   ## cluster names follow the format Lx_<chr>_<strand>_<start>_<end>
   my $bed6_cluster_file = (defined $stored_denovo_cluster_file)?$stored_denovo_cluster_file:$tmp_bed6_cluster_file;
   my $bed6_tss_input_file = $tmp_bed6_tss_input_file;
-  $cmd .= " tee $bed6_tss_input_file                                         \\
-               | $mergebed_bin -s -i stdin -d $denovo_clustering_distance    \\
+  $cmd .= "sort -k1,1 -k2,2n | tee $bed6_tss_input_file                                         \\
+               | $mergebed_bin -s -i stdin -d $denovo_clustering_distance -c 6 -o distinct    \\
                | awk '{OFS=\"\t\"}{print \$1,\$2,\$3,\"Lx_\"\$1\"_\"\$4\"_\"\$2\"_\"\$3,\"1\",\$4}'> $bed6_cluster_file";
   if ($verbose > 0){ print STDERR "computing single linkage cluster -d $denovo_clustering_distance from $input_format input data (this may take some time)...\n"; }
   if ($verbose > 2){ print STDERR $cmd, "\n"; }
   system($cmd);
   ## intersect the transformed input bed12 formatted pe data with the de novo
   ## bed cluster, reporting both the "pe bed12" and "cluster bed6" content
-  $cmd = "$intersectbed_bin -s -wo -a $bed6_tss_input_file -b $bed6_cluster_file";
+  $cmd = "sort -k1,1d -k6,6 -k2,2n $bed6_tss_input_file | $intersectbed_bin -s -wo -a stdin -b $bed6_cluster_file";
   if ($verbose > 0){ print STDERR "now, merging de-novo single linkage cluster with $input_format input data...\n"; }
   if ($verbose > 2){ print STDERR $cmd, "\n"; }
 }
