@@ -379,170 +379,133 @@ else{
 }
 
 
-my @curr_cluster;
-my $curr_cluster_key;
-my %bsize;
-my $pe_count=0;
-## read each "pe bed12"+"cluster bed6" reported intersectbed output
-## use the "cluster bed6 as the key to group pe data content
-open(CLUST, "$cmd |");
-while(<CLUST>){
-  chomp;
-  my @data = split /\t/;
-  my @cluster = @data[6,7,8,9,11];
-  my $cluster_key = join(";", @cluster);
-  my $cluster_start = $cluster[1];
-  my $cluster_end = $cluster[2];
-
-  my @bed12 = split /;/, $data[3];
+## extracts and sotres blocks informations from a line
+sub saveBlocks{
+  my $line = shift;
+  my $bsize_ref = shift;
+  
+  my @intersect_res = split(/\t/, $line);
+  my @bed12 = split /;/, $intersect_res[3];
   my $pe_start = $bed12[1];
-  my $pe_end = $bed12[2];
   my $pe_block_count = $bed12[9];
   my @pe_block_size = split /,/, $bed12[10];
   my @pe_block_start = split /,/, $bed12[11];
-
-  unless (scalar @curr_cluster){
-    @curr_cluster = @cluster;
-    $curr_cluster_key = $cluster_key;
-    %bsize = ();
-    $pe_count = 0;
-  }
-
-  if ($cluster_key eq $curr_cluster_key){
-    ## this pe is a part of the current cluster
-    ## fill out the sparse array bsize{'absolute_pe_bloc_start_pos'}='(max_seen)pe_block_size'
-    for my $i (0..$pe_block_count-1){
-      if ($verbose > 3){ print STDERR join(" ", 'pe_block in cluster', $i, $pe_block_start[$i], $pe_block_size[$i]), "\n";  }
-      if ( $pe_block_size[$i] > $bsize{$pe_block_start[$i]+$pe_start} ) {
-	$bsize{$pe_block_start[$i]+$pe_start} = $pe_block_size[$i];
-	if ($verbose > 3){ print STDERR "\t", join(" ", 'selected start and len', $i, $pe_block_start[$i], $pe_block_size[$i]), "\n"; }
-      }
+  
+  ## fill out the sparse array bsize{'absolute_pe_bloc_start_pos'}='(max_seen)pe_block_size'
+  for my $i (0..$pe_block_count-1){
+    if ( $pe_block_size[$i] > $bsize_ref->{$pe_block_start[$i]+$pe_start} ) {
+      $bsize_ref->{$pe_block_start[$i]+$pe_start} = $pe_block_size[$i];
     }
+  }
+};
+
+
+## read each "pe bed12"+"cluster bed6" reported intersectbed output
+## use the "cluster bed6 as the key to group pe data content
+
+open(CLUST, "$cmd |");
+
+chomp(my $new_cluster_first_read = <CLUST>);
+
+## start an infinite loop until EOF
+while(my $bool = 1){
+ 
+   my %bsize = ();
+   my $pe_count = 1;
+    
+   ## exit if eof and all lines were processed
+   if ((eof CLUST) && (length($new_cluster_first_read) == 0)){ last;  }
+   ## Special case where eof was reached but the last line belongs to an other cluster.
+   ## we simply set bool to 0 so the last line is processed then we exit the infinite loop
+   if ((eof CLUST) && (length($new_cluster_first_read) > 0)){
+     $bool = 0;
+   }
+   
+  saveBlocks($new_cluster_first_read, \%bsize);
+  
+  ## get the cluster's informations
+  my @new_cluster_first_read = split(/\t/, $new_cluster_first_read);
+
+  my @current_cluster = @new_cluster_first_read[6,7,8,9,11];
+  my $current_cluster_key = join(";", @current_cluster);
+
+  $new_cluster_first_read = "";
+  
+  ## read the file
+  while(my $row = <CLUST>){
+    chomp($row);
+
+    my @data = split(/\t/, $row);
+    
+    my @cluster = @data[6,7,8,9,11];
+    my $cluster_key = join(";", @cluster);
+    
+    # if cluster's name is different the we store the line and exit the loop
+    if($cluster_key ne $current_cluster_key){
+      $new_cluster_first_read = $row;
+      last;
+    }
+
+    saveBlocks($row, \%bsize);
     $pe_count++;
+
   }
-  else{
-    ## this pe is a part of the next cluster
-    ## gather current cagescan cluster data to be exported
-    ## construct the list of cagecluster block sizes and (absolute) start positions
-    if ($verbose > 3){   print STDERR join(" ", 'pe_block in next cluster process previous'), "\n"; }
-    my @istart = sort {$a<=>$b} keys %bsize;
-    my @ostart;
-    my @osize;
-    push @ostart , shift @istart;
-    push @osize , $bsize{$ostart[$#ostart]};
-    if ($verbose > 3){ print STDERR join("\t", 'first block', @ostart, @osize), "\n"; }
 
-    while (defined (my $istart = shift @istart)){
-      if ($verbose > 3){ print STDERR join("\t", 'next block', $istart, $bsize{$istart}), "\n";  }
-      if ($istart > $ostart[$#ostart] +  $osize[$#osize]){
-	if ($verbose > 3){ print STDERR "\t", join("\t", 'this input block defines a new dest block', $ostart[$#ostart], $istart, $bsize{$istart}), "\n"; }
-	push @ostart, $istart;
-	push @osize , $bsize{$istart};
-	if ($verbose > 3){ print STDERR "\t", join("\t",'last dest block', $ostart[$#ostart] , $osize[$#osize]), "\n" }
-      }
-      else{
-	if ($verbose > 3){ print STDERR "\t", join("\t", 'this input block DO NOT defines a new dest block', $ostart[$#ostart], $istart, $bsize{$istart}), "\n"; }
-	if ($istart + $bsize{$istart} > $ostart[$#ostart] + $osize[$#ostart]){
-	  if ($verbose > 3){ print STDERR "\t", join("\t", 'its end point ', $istart + $bsize{$istart}, 'is further modify end point', $ostart[$#ostart] + $osize[$#ostart] ), "\n"; }
-	  $osize[$#osize] =  $istart + $bsize{$istart} - $ostart[$#ostart];
-	  if ($verbose > 3){ print STDERR "\t", join("\t",'last dest block', $ostart[$#ostart] , $osize[$#osize],  $ostart[$#ostart] + $osize[$#osize]), "\n" }
-	}
-	else{
-	  if ($verbose > 3){ print STDERR "\t", join("\t", 'its end point ', $bsize{$istart}, 'is NOT further the previous  end point',  $osize[$#ostart] ), "\n"; }
-	  if ($verbose > 3){ print STDERR "\t", join("\t",'last dest block', $ostart[$#ostart] , $osize[$#osize]), "\n" }
-	}
-      }
-    }
+#   ## gather current cagescan cluster data to be exported
+#   ## construct the list of cagecluster block sizes and (absolute) start positions
+  if ($verbose > 3){   print STDERR join(" ", 'pe_block in next cluster process previous'), "\n"; }
+  my @istart = sort {$a<=>$b} keys %bsize;
+  my @ostart;
+  my @osize;
+  push @ostart , shift @istart;
+  push @osize , $bsize{$ostart[$#ostart]};
+  if ($verbose > 3){ print STDERR join("\t", 'first block', @ostart, @osize), "\n"; }
 
-    ## gather the data to be stdout-ed
-    my $ochr = $curr_cluster[0];
-    my $ostart = $ostart[0];
-    my $oend = $ostart[$#ostart] + $osize[$#osize];
-    my $oname = $curr_cluster[3];
-    my $oscore = $pe_count;
-    my $ostrand = $curr_cluster[4];
-    ## bed12 cdsStart|cdsStart is used to mark the 3'extend of the cluster
-    my ($oostart, $ooend) = ($curr_cluster[4] eq '+')?($ostart, $curr_cluster[2]):($curr_cluster[1], $oend);
-    my $ocolor = '255,0,0';
-    my $obcount =  scalar @osize;
-    ## correct the cagecluster block starts to be relative to the 1st cagecluster block
-    foreach (@ostart){ $_ = $_ - $ostart }
-
-        ## make sure that cdsEnd is at most the end of the CAGEscan cluster (proper cdsStart has been dealt with
-        ## when building the cluster)
-        $ooend = $oend if ($ooend > $oend);
-        $oostart = $ostart if ($oostart < $ostart);
-    ## stdout the current cagescan cluster data
-    print STDOUT join("\t", $ochr,  $ostart, $oend, $oname, $oscore, $ostrand, $oostart, $ooend, $ocolor, $obcount, join(",", @osize), join(",", @ostart)), "\n";
-
-    ## re-initialize the new current cluster
-    @curr_cluster = @cluster;
-    $curr_cluster_key = join(";", @curr_cluster);
-    %bsize = ();
-    $pe_count = 0;
-    ## this pe is a part of the (newly initialize) current cluster
-    ## fill out the sparse array bsize{'absolute_pe_bloc_start_pos'}='pe_block_size'
-    for my $i (0..$pe_block_count-1){
-      if ( $pe_block_size[$i] > $bsize{$pe_block_start[$i]+$pe_start} ) {
-	$bsize{$pe_block_start[$i]+$pe_start} = $pe_block_size[$i];
-	#if ($verbose > 3){ print STDERR join("\t", 'bsize', $bsize{$pe_block_start[$i]+$pe_start}, $pe_block_size[$i]), "\n"; }
-      }
-    }
-    $pe_count++;
-  }
-}
-
-## last cluster
-## construct the list of cagecluster block sizes and (absolute) start positions
-if ($verbose > 3){ print STDERR join(" ", 'process last cluster'), "\n";}
-my @istart = sort {$a<=>$b} keys %bsize;
-my @ostart;
-my @osize;
-if ($verbose > 3){ for my $start (@istart){  print STDERR "start ", $start," of size ", $bsize{$start}, "\n"; }}
-push @ostart , shift @istart;
-push @osize , $bsize{$ostart[$#ostart]};
-
-if ($verbose > 3){ print STDERR join("\t", 'first block', @ostart, @osize), "\n"; }
-while (defined (my $istart = shift @istart)){
-  if ($verbose > 3){ print STDERR join("\t", 'next block', $istart, $bsize{$istart}), "\n"; }
-  if ($istart > $ostart[$#ostart] +  $osize[$#osize]){
-    if ($verbose > 3){ print STDERR "\t", join("\t", 'this input block defines a new dest block', $ostart[$#ostart], $istart, $bsize{$istart}), "\n"; }
-    push @ostart, $istart;
-    push @osize , $bsize{$istart};
-    if ($verbose > 3){ print STDERR "\t", join("\t",'last dest block', $ostart[$#ostart] , $osize[$#osize]), "\n" }
-  }
-  else{
-    if ($verbose > 3){ print STDERR "\t", join("\t", 'this input block DO NOT defines a new dest block', $ostart[$#ostart], $istart, $bsize{$istart}), "\n"; }
-    if ($istart + $bsize{$istart} > $ostart[$#ostart] + $osize[$#ostart]){
-      if ($verbose > 3){ print STDERR "\t", join("\t", 'its end point ', $istart + $bsize{$istart}, 'is further modify end point', $ostart[$#ostart] + $osize[$#ostart] ), "\n"; }
-      $osize[$#osize] =  $istart + $bsize{$istart} - $ostart[$#ostart];
-      if ($verbose > 3){ print STDERR "\t", join("\t",'last dest block', $ostart[$#ostart] , $osize[$#osize],  $ostart[$#ostart] + $osize[$#osize]), "\n" }
-    }
-    else{
-      if ($verbose > 3){ print STDERR "\t", join("\t", 'its end point ', $bsize{$istart}, 'is NOT further the previous  end point',  $osize[$#ostart] ), "\n"; }
+  while (defined (my $istart = shift @istart)){
+    if ($verbose > 3){ print STDERR join("\t", 'next block', $istart, $bsize{$istart}), "\n";  }
+    if ($istart > $ostart[$#ostart] +  $osize[$#osize]){
+      if ($verbose > 3){ print STDERR "\t", join("\t", 'this input block defines a new dest block', $ostart[$#ostart], $istart, $bsize{$istart}), "\n"; }
+      push @ostart, $istart;
+      push @osize , $bsize{$istart};
       if ($verbose > 3){ print STDERR "\t", join("\t",'last dest block', $ostart[$#ostart] , $osize[$#osize]), "\n" }
     }
+    else{
+      if ($verbose > 3){ print STDERR "\t", join("\t", 'this input block DO NOT defines a new dest block', $ostart[$#ostart], $istart, $bsize{$istart}), "\n"; }
+      if ($istart + $bsize{$istart} > $ostart[$#ostart] + $osize[$#ostart]){
+	if ($verbose > 3){ print STDERR "\t", join("\t", 'its end point ', $istart + $bsize{$istart}, 'is further modify end point', $ostart[$#ostart] + $osize[$#ostart] ), "\n"; }
+	$osize[$#osize] =  $istart + $bsize{$istart} - $ostart[$#ostart];
+	if ($verbose > 3){ print STDERR "\t", join("\t",'last dest block', $ostart[$#ostart] , $osize[$#osize],  $ostart[$#ostart] + $osize[$#osize]), "\n" }
+      }
+      else{
+	if ($verbose > 3){ print STDERR "\t", join("\t", 'its end point ', $bsize{$istart}, 'is NOT further the previous  end point',  $osize[$#ostart] ), "\n"; }
+	if ($verbose > 3){ print STDERR "\t", join("\t",'last dest block', $ostart[$#ostart] , $osize[$#osize]), "\n" }
+      }
+    }
   }
-}
-## gather the data to be stdout-ed
-my $ochr = $curr_cluster[0];
-my $ostart = $ostart[0];
-my $oend = $ostart[$#ostart] + $osize[$#osize];
-my $oname = $curr_cluster[3];
-my $oscore = $pe_count;
-my $ostrand = $curr_cluster[4];
-## bed12 cdsStart|cdsStart is used to mark the 3'extend of the cluster
-my ($oostart, $ooend) = ($curr_cluster[4] eq '+')?($ostart, $curr_cluster[2]):($curr_cluster[1], $oend);
-my $ocolor = '255,0,0';
-my $obcount =  scalar @osize;
-## correct the cagecluster block starts to be relative to the 1st cagecluster block
-foreach (@ostart){ $_ = $_ - $ostart }
 
-## make sure that cdsEnd is at most the end of the CAGEscan cluster (proper cdsStart has been dealt with
-## when building the cluster)
-$ooend = $oend if ($ooend > $oend);
-$oostart = $ostart if ($oostart < $ostart);
-print STDOUT join("\t", $ochr,  $ostart, $oend, $oname, $oscore, $ostrand, $oostart, $ooend, $ocolor, $obcount, join(",", @osize), join(",", @ostart)), "\n";
+  ## gather the data to be stdout-ed
+  my $ochr = @current_cluster[0];
+  my $ostart = $ostart[0];
+  my $oend = $ostart[$#ostart] + $osize[$#osize];
+  my $oname = @current_cluster[3];
+  my $oscore = $pe_count;
+  my $ostrand = @current_cluster[4];
+  ## bed12 cdsStart|cdsStart is used to mark the 3'extend of the cluster
+  my ($oostart, $ooend) = (@current_cluster[4] eq '+')?($ostart, @current_cluster[2]):(@current_cluster[1], $oend);
+  my $ocolor = '255,0,0';
+  my $obcount =  scalar @osize;
+  ## correct the cagecluster block starts to be relative to the 1st cagecluster block
+  foreach (@ostart){ $_ = $_ - $ostart }
+
+      ## make sure that cdsEnd is at most the end of the CAGEscan cluster (proper cdsStart has been dealt with
+      ## when building the cluster)
+      $ooend = $oend if ($ooend > $oend);
+      $oostart = $ostart if ($oostart < $ostart);
+  ## stdout the current cagescan cluster data
+  print STDOUT join("\t", $ochr,  $ostart, $oend, $oname, $oscore, $ostrand, $oostart, $ooend, $ocolor, $obcount, join(",", @osize), join(",", @ostart)), "\n";
+
+}
+
 
 ## clean up the tmp file if created
 if ($verbose > 1){
@@ -553,3 +516,4 @@ else {
   system("rm $tmp_bed6_tss_input_file") if (-e $tmp_bed6_tss_input_file);
   system("rm $tmp_bed6_cluster_file") if (-e $tmp_bed6_cluster_file);
 }
+
