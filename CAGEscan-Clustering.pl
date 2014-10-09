@@ -43,6 +43,7 @@ my $stored_denovo_cluster_file;
 my $stored_uprocessed_bam_file;
 my $usage;
 my $verbose = 0;
+my $fit_to_guiding_cluster_size;
 
 my $opt = GetOptions(
 		     "help"              => \$help,            
@@ -62,6 +63,7 @@ my $opt = GetOptions(
 		     "tmp_bed6_tss_input_file=s"  => \$tmp_bed6_tss_input_file ,
 		     "tmp_bed6_cluster_file=s" => \$tmp_bed6_cluster_file ,
                      "presorted_bed6_tss_input_file" => \$presorted_bed6_tss_input_file,
+                     "fit_to_guiding_cluster_size" => \$fit_to_guiding_cluster_size,
 		    );
 
 sub usage(){
@@ -266,7 +268,39 @@ Path to the location where a temporary BED12 formatted file holding
 the input data might be created.  This is in particular the case when
 "guiding" clusters are created from the paired-end data themselves.
 [default '/tmp/CAGEscan-Clustering.bed12_formatted_input.PID.tmp']
+@current_cluster = @new_cluster_first_read[6,7,8,9,11];
+  my $current_cluster_key = join(";", @current_cluster);
 
+  $new_cluster_first_read = "";
+  # read and store lines until the cluster's name is different
+  while(my $row = <CLUST>){
+    chomp($row);
+
+    my @data = split(/\t/, $row);
+    
+    my @cluster = @data[6,7,8,9,11];
+    my $cluster_key = join(";", @cluster);
+    
+    # if cluster's name is different then rewind and exit the loop
+    if($cluster_key ne $current_cluster_key){
+      $new_cluster_first_read = $row;
+      @current_cluster = @new_cluster_first_read[6,7,8,9,11];
+  my $current_cluster_key = join(";", @current_cluster);
+
+  $new_cluster_first_read = "";
+  # read and store lines until the cluster's name is different
+  while(my $row = <CLUST>){
+    chomp($row);
+
+    my @data = split(/\t/, $row);
+    
+    my @cluster = @data[6,7,8,9,11];
+    my $cluster_key = join(";", @cluster);
+    
+    # if cluster's name is different then rewind and exit the loop
+    if($cluster_key ne $current_cluster_key){
+      $new_cluster_first_read = $row;
+      
 =item B<--tmp_bed6_cluster_file>
 
 Path to the location where a temporary BED6 formatted file holding the
@@ -294,10 +328,15 @@ data themselves).
 
 Path to BedTools C<intersectBed> binary (always used).
 
+=item B<--fit_to_guiding_cluster_size>
+
+Enforce the read length to be at least the length of the guiding cluster.
+
 =back
 
 =cut
 
+## print usage and exit
 if (defined $usage){ usage(); exit;}
 if (defined $help) { usage(); exit;}
 
@@ -309,7 +348,7 @@ unless ($input_format){
   }
   else{
     usage();
-    die $0,"*****ERROR: you must provide the format of the stdin-ed data via the option '--format' or a file via the option '--input file', the format of which will be guessed from the its suffix\n";
+    die $0,"*****ERROR: you must provide the format of the stdin-ed data via the option '--format' or a file via the option '--input file', the format of which will be guessed from its suffix\n";
   }
 }
 
@@ -497,10 +536,35 @@ while(my $bool = 1){
   ## correct the cagecluster block starts to be relative to the 1st cagecluster block
   foreach (@ostart){ $_ = $_ - $ostart }
 
-      ## make sure that cdsEnd is at most the end of the CAGEscan cluster (proper cdsStart has been dealt with
-      ## when building the cluster)
+  ## make sure that cdsEnd is at most the end of the CAGEscan cluster (proper cdsStart has been dealt with
+  ## when building the cluster)
+  
+  
+
+
+  if ($fit_to_guiding_cluster_size){
+    $oostart = $current_cluster[1];
+    $ooend = $current_cluster[2];
+
+    if ($oend < $ooend){
+
+      $oend = $ooend;
+      @osize[-1] = $ooend - $ostart - @ostart[-1];
+    }
+    if ($ostart > $oostart){
+
+      my $shift_start = $ostart - $oostart;
+      @osize[0] = @osize[0] + $shift_start;
+      foreach (@ostart){ $_ = $_ + $shift_start; }
+      @ostart[0] = 0;
+      $ostart = $oostart;
+    }
+  } else {
       $ooend = $oend if ($ooend > $oend);
       $oostart = $ostart if ($oostart < $ostart);
+  
+  }
+  
   ## stdout the current cagescan cluster data
   print STDOUT join("\t", $ochr,  $ostart, $oend, $oname, $oscore, $ostrand, $oostart, $ooend, $ocolor, $obcount, join(",", @osize), join(",", @ostart)), "\n";
 
@@ -516,4 +580,3 @@ else {
   system("rm $tmp_bed6_tss_input_file") if (-e $tmp_bed6_tss_input_file);
   system("rm $tmp_bed6_cluster_file") if (-e $tmp_bed6_cluster_file);
 }
-
