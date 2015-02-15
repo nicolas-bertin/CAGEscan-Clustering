@@ -383,8 +383,8 @@ unless ($presorted_bed6_tss_input_file){
   ##   start and end correspond to the 0based pe_tss position
   ##   name correspond to the semicolon delimited concatenated full bed12 line
   ##   sort by tss position
-  $cmd .= " sed -e 's/\t/;/g'                                          \\
-               | awk 'BEGIN{FS=\";\"}{OFS=\"\t\"}                      \\
+  $cmd .= " sed -e 's/\t/;;/g'                                          \\
+               | awk 'BEGIN{FS=\";;\"}{OFS=\"\t\"}                      \\
                    {                                                   \\
                    if (\$6 == \"+\") print \$1,\$2,\$2+1,\$0,\".\",\$6;   \\
                    else           print \$1,\$3-1,\$3,\$0,\".\",\$6;   \\
@@ -424,7 +424,7 @@ sub saveBlocks{
   my $bsize_ref = shift;
   
   my @intersect_res = split(/\t/, $line);
-  my @bed12 = split /;/, $intersect_res[3];
+  my @bed12 = split /;;/, $intersect_res[3];
   my $pe_start = $bed12[1];
   my $pe_block_count = $bed12[9];
   my @pe_block_size = split /,/, $bed12[10];
