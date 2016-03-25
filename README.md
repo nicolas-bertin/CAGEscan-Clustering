@@ -68,12 +68,6 @@ documented in the file [CAGEscan-Clustering.pod](CAGEscan-Clustering.pod).
  * A [Python implementation](https://github.com/mmendez12/umicount/blob/master/umicount/cage_scan_clustering.py)
    that does only distance clustering from BED12 input (no support for SAM/BAM input, nor external
    cluster definition).
-
-## pairedBamToBed12
-
-Converts 'properly paired' BAM alignments to BED12 format, to ease the display
-and analysis of CAGEscan data.
-
-The source of pairedBamToBed12 is distributed as a patched version of BEDTools:
-
-    https://github.com/nicolas-bertin/bedtools-pairedBamToBed12
+ * [pairedBamToBed12](https://github.com/Population-Transcriptomics/pairedBamToBed12), the tool that
+   converts 'properly paired' BAM alignments to BED12 format, to ease the display
+   and analysis of CAGEscan data.
