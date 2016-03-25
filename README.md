@@ -1,7 +1,7 @@
 # CAGEscan clustering tools
 
     Copyright: 2011-2013 RIKEN Omics Science Center
-                  2013   RIKEN Center for Life Science Technologies, Division of Genomics Technologies
+               2013-2015 RIKEN Center for Life Science Technologies, Division of Genomics Technologies
     Author: Nicolas Bertin <nbertin@gsc.riken.jp>
     License: GNU public license version 2 (GPL v2)
 
@@ -34,19 +34,40 @@ CAGEscan-Clustering is a Perl script written at RIKEN, that calls
 `pairedBamToBed12` and other programs from the BEDTools suite.  It is fully
 documented in the file [CAGEscan-Clustering.pod](CAGEscan-Clustering.pod).
 
+## Release history
+
+### Version 1.0
+
+ - Initial public release
+
+### Version 1.1
+
+ - Added a new option `fit_to_guiding_cluster_size`.
+ - Made more portable with regard to awk versions.
+ - Updated for backwards-incompatible changes in BEDTools 2.20.0.
+
+### Version 1.2
+
+ - Use `;;` as internal separator, to accomodate for the presence
+   of single semicolons in the name field of SAM, BAM or BED12 input
+   (in particular for workflows using TagDust 2).
+
 ## See also
 
  * http://fantom.gsc.riken.jp/protocols/nanocage.html
  * http://fantom.gsc.riken.jp/software/
  * Linking promoters to functional transcripts in small samples with nanoCAGE and CAGEscan.
-   Plessy, Bertin, Takahashi, Simone et al., Nat Methods. 2010 Jul;7(7):528-34.
+   Plessy, Bertin, Takahashi, Simone _et al._, Nat Methods. 2010 Jul;7(7):528-34.
    http://dx.doi.org/10.1038/nmeth.1470
  * Definition of Promotome–Transcriptome Architecture Using CAGEscan
-   Bertin et al., 2012.  Chapter 3 of "Tag-Based Next Generation Sequencing", Wiley-VCH Verlag GmbH & Co. KGaA
+   Bertin _et al._, 2012.  Chapter 3 of "Tag-Based Next Generation Sequencing", Wiley-VCH Verlag GmbH & Co. KGaA
    http://dx.doi.org/10.1002/9783527644582.ch3
  * Digital expression profiling of the compartmentalized translatome of Purkinje neurons.
-   Kratz, Beguin et al., Genome Res. 2014 (in press).
+   Kratz, Beguin _et al._, Genome Res. 2014 24:1396-1410.
    http://dx.doi.org/10.1101/gr.164095.113
+ * A [Python implementation](https://github.com/mmendez12/umicount/blob/master/umicount/cage_scan_clustering.py)
+   that does only distance clustering from BED12 input (no support for SAM/BAM input, nor external
+   cluster definition).
 
 ## pairedBamToBed12
 

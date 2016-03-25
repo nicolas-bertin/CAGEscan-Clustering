@@ -1,28 +1,24 @@
 #!/usr/bin/perl
 
-##
-##
 ##  Create CAGEscan cluster from paired-end data in BED12, BAM or SAM format
-##  See usage() below for a detaillled descrition of the script
 ##
 ##  Remark :
-##    * mandatory use of BedTools intersectBed version 2.9.0
-##    * in part optional use of BedTools mergeBed version 2.9.0
-##    *                         (home-brewed) pairedBamToBed12 (re-enginering of BedTools bamToBed)
-##                              samtools version: 0.1.7 (r510)
-##    * default paths to intersectBed, bamToBed and mergeBed and samtools are hardcoded
-##    * read/write access to /tmp/ optional, but recommanded
+##    * Requires BedTools version 2.20.0 or higher.
+##    * In part optional use of:
+##       - BEDTools mergeBed,
+##       - pairedBamToBed12 (https://github.com/Population-Transcriptomics/pairedBamToBed12)
+##       - samtools version: 0.1.7 (r510)
+##    * read/write access to /tmp/ optional, but recommended.
 ##
 ## Nicolas Bertin <nbertin@gsc.riken.jp>
 ##       Created : Wed Feb  2 16:53:59 JST 2011
-## Last modified : Wed Feb 27 13:05:19 JST 2013
-##
-##
+##       Source code and history: https://github.com/nicolas-bertin/CAGEscan-Clustering
 
 use strict;
 use Getopt::Long;
 use File::Basename;
 
+my $version = "1.2";
 
 my $samtools_bin = "/usr/bin/samtools";
 my $bamtobed_bin = "/usr/bin/pairedBamToBed12";
@@ -69,7 +65,8 @@ my $opt = GetOptions(
 sub usage(){
   die <<HERE;
 usage: $0 -i <input bed12, bam or sam file to be clustered>
-       type “perldoc $0” for details
+version: $version
+Type “perldoc $0” for details.
 HERE
 }
 
