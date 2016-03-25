@@ -193,7 +193,7 @@ Path to the location where a temporary BED12 formatted file holding
 the input data might be created.  This is in particular the case when
 "guiding" clusters are created from the paired-end data themselves.
 [default '/tmp/CAGEscan-Clustering.bed12_formatted_input.PID.tmp']
-
+      
 =item B<--tmp_bed6_cluster_file>
 
 Path to the location where a temporary BED6 formatted file holding the
@@ -220,6 +220,10 @@ data themselves).
 =item B<--bin_intersectbed>
 
 Path to BedTools C<intersectBed> binary (always used).
+
+=item B<--fit_to_guiding_cluster_size>
+
+Enforce the read length to be at least the length of the guiding cluster.
 
 =back
 
