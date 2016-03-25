@@ -268,38 +268,6 @@ Path to the location where a temporary BED12 formatted file holding
 the input data might be created.  This is in particular the case when
 "guiding" clusters are created from the paired-end data themselves.
 [default '/tmp/CAGEscan-Clustering.bed12_formatted_input.PID.tmp']
-@current_cluster = @new_cluster_first_read[6,7,8,9,11];
-  my $current_cluster_key = join(";", @current_cluster);
-
-  $new_cluster_first_read = "";
-  # read and store lines until the cluster's name is different
-  while(my $row = <CLUST>){
-    chomp($row);
-
-    my @data = split(/\t/, $row);
-    
-    my @cluster = @data[6,7,8,9,11];
-    my $cluster_key = join(";", @cluster);
-    
-    # if cluster's name is different then rewind and exit the loop
-    if($cluster_key ne $current_cluster_key){
-      $new_cluster_first_read = $row;
-      @current_cluster = @new_cluster_first_read[6,7,8,9,11];
-  my $current_cluster_key = join(";", @current_cluster);
-
-  $new_cluster_first_read = "";
-  # read and store lines until the cluster's name is different
-  while(my $row = <CLUST>){
-    chomp($row);
-
-    my @data = split(/\t/, $row);
-    
-    my @cluster = @data[6,7,8,9,11];
-    my $cluster_key = join(";", @cluster);
-    
-    # if cluster's name is different then rewind and exit the loop
-    if($cluster_key ne $current_cluster_key){
-      $new_cluster_first_read = $row;
       
 =item B<--tmp_bed6_cluster_file>
 
